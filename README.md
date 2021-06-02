@@ -2,7 +2,7 @@
 
 A swift framework that displays infinite controllers in a scroll view.
 
-![](Simulator Screen Recording - iPhone 12 Pro - 2021-06-02 at 12.55.58.gif)
+![](Simulator_Screen_Recording_iPhone12Pro.gif)
 
 ## License
 
