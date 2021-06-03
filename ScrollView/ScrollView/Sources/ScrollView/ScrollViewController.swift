@@ -25,6 +25,7 @@ public class ScrollViewController: UIViewController
     public private(set) var currentControllers: [UIViewController]
     public private(set) var collectionView: UICollectionView!
     public private(set) var collectionViewLayout: UICollectionViewFlowLayout!
+    public private(set) var itemSize: CGSize = .zero
     
     /// The number of items in the specified section.
     public var numberOfItemsInSection: Int = 1
@@ -124,6 +125,20 @@ public extension ScrollViewController
     func scrollToTop()
     {
         collectionView.setContentOffset(.zero, animated: true)
+    }
+    
+    func getItemSize() -> CGSize
+    {
+        let numberOfItemsInSection = CGFloat(numberOfItemsInSection)
+        let horizontalInsetSize = sectionInset.left + sectionInset.right + (numberOfItemsInSection - 1) * minimumLineSpacing + (m_ScrollDirection == .vertical ? (numberOfItemsInSection - 1) * minimumInteritemSpacing : 0)
+        let interItemSpacing = m_ScrollDirection == .horizontal ? minimumInteritemSpacing : 0
+        let width = (view.frame.size.width - horizontalInsetSize) / numberOfItemsInSection
+        let verticalInsetSize = sectionInset.top + sectionInset.bottom + interItemSpacing
+        let height = view.frame.size.height - verticalInsetSize
+        
+        itemSize = .init(width: width, height: height)
+        
+        return itemSize
     }
 }
 
@@ -333,18 +348,6 @@ private extension ScrollViewController
         ScrollViewController.s_Logger.error("Failed to get controller for index path.")
         
         return nil
-    }
-    
-    func getItemSize() -> CGSize
-    {
-        let numberOfItemsInSection = CGFloat(numberOfItemsInSection)
-        let horizontalInsetSize = sectionInset.left + sectionInset.right + (numberOfItemsInSection - 1) * minimumLineSpacing + (m_ScrollDirection == .vertical ? (numberOfItemsInSection - 1) * minimumInteritemSpacing : 0)
-        let width = (view.frame.size.width - horizontalInsetSize) / numberOfItemsInSection
-        let verticalInsetSize = sectionInset.top + sectionInset.bottom + (m_ScrollDirection == .horizontal ? minimumInteritemSpacing : 0)
-        let height = view.frame.size.height - verticalInsetSize
-        let itemSize: CGSize = .init(width: width, height: height)
-        
-        return itemSize
     }
 }
 
