@@ -27,16 +27,23 @@ public class ScrollViewController: UIViewController
     public private(set) var collectionViewLayout: UICollectionViewFlowLayout!
     public private(set) var itemSize: CGSize = .zero
     
+    public var numberOfSections: Int
+    {
+        return Int(Double(currentControllers.count / numberOfItemsInSection).rounded(.up))
+    }
+    
     /// The number of items in the specified section.
     public var numberOfItemsInSection: Int = 1
+    
+    /// The number of rows in vertical and columns in horizontal.
+    public var numberOfRowsOrColumns: Int = 1
     
     /// The margins to apply to content in the specified section.
     public var sectionInset: UIEdgeInsets = .zero
     
-    /// The spacing between successive rows or columns of a section.
-    public var minimumLineSpacing: CGFloat = .zero
-    
-    /// The spacing between successive items in the rows or columns of a section.
+    /// For a vertically scrolling grid, this value represents the minimum spacing between items in the same row.
+    /// For a horizontally scrolling grid, this value represents the minimum spacing between items in the same column.
+    /// This spacing is used to compute how many items can fit in a single line, but after the number of items is determined, the actual spacing may possibly be adjusted upward.
     public var minimumInteritemSpacing: CGFloat = .zero
     
     /// The mimimum number of controllers left to display before not having anymore.
@@ -60,6 +67,8 @@ public class ScrollViewController: UIViewController
         currentControllers = controllers
         
         super.init(nibName: nil, bundle: nil)
+        
+        configure()
     }
     
     required init?(coder: NSCoder)
@@ -76,7 +85,6 @@ public extension ScrollViewController
     {
         super.viewDidLoad()
         
-        configure()
     }
     
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator)
@@ -129,14 +137,7 @@ public extension ScrollViewController
     
     func getItemSize() -> CGSize
     {
-        let numberOfItemsInSection = CGFloat(numberOfItemsInSection)
-        let horizontalInsetSize = sectionInset.left + sectionInset.right + (numberOfItemsInSection - 1) * minimumLineSpacing + (m_ScrollDirection == .vertical ? (numberOfItemsInSection - 1) * minimumInteritemSpacing : 0)
-        let interItemSpacing = m_ScrollDirection == .horizontal ? minimumInteritemSpacing : 0
-        let width = (view.frame.size.width - horizontalInsetSize) / numberOfItemsInSection
-        let verticalInsetSize = sectionInset.top + sectionInset.bottom + interItemSpacing
-        let height = view.frame.size.height - verticalInsetSize
-        
-        itemSize = .init(width: width, height: height)
+        itemSize = .init(width: getItemWidth(), height: getItemHeight())
         
         return itemSize
     }
@@ -153,11 +154,16 @@ extension ScrollViewController: UICollectionViewDelegate, UICollectionViewDataSo
     
     public func numberOfSections(in collectionView: UICollectionView) -> Int
     {
-        return Int(Double(currentControllers.count / numberOfItemsInSection).rounded(.up))
+        return numberOfSections
     }
     
     public func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath)
     {
+        defer
+        {
+            fetchNewControllersIfNeededAt(indexPath: indexPath)
+        }
+        
         guard let controller = getControllerFor(indexPath: indexPath) else { return }
         
         controller.view.translatesAutoresizingMaskIntoConstraints = false
@@ -177,11 +183,6 @@ extension ScrollViewController: UICollectionViewDelegate, UICollectionViewDataSo
     
     public func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath)
     {
-        defer
-        {
-            fetchNewControllersIfNeededAt(indexPath: indexPath)
-        }
-        
         guard let controller = getControllerFor(indexPath: indexPath) else { return }
         
         controller.view.removeFromSuperview()
@@ -200,7 +201,7 @@ extension ScrollViewController: UICollectionViewDelegate, UICollectionViewDataSo
     
     public func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat
     {
-        return minimumLineSpacing
+        return 0
     }
     
     public func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat
@@ -235,7 +236,7 @@ private extension ScrollViewController
         collectionViewLayout = .init()
         
         collectionViewLayout.minimumInteritemSpacing = minimumInteritemSpacing
-        collectionViewLayout.minimumLineSpacing = minimumLineSpacing
+        collectionViewLayout.minimumLineSpacing = 0
         collectionViewLayout.estimatedItemSize = .zero
         collectionViewLayout.scrollDirection = m_ScrollDirection
     }
@@ -281,14 +282,17 @@ private extension ScrollViewController
     
     func configureRefreshControl()
     {
-        let refreshControl = UIRefreshControl()
-        
-        refreshControl.attributedTitle = nil
-        refreshControl.translatesAutoresizingMaskIntoConstraints = false
-        refreshControl.addTarget(self, action: #selector(didRefresh), for: .valueChanged)
-        refreshControl.transform = .init(scaleX: 0.7, y: 0.7)
-        
-        collectionView.refreshControl = refreshControl
+        if m_ScrollDirection == .vertical
+        {
+            let refreshControl = UIRefreshControl()
+            
+            refreshControl.attributedTitle = nil
+            refreshControl.translatesAutoresizingMaskIntoConstraints = false
+            refreshControl.addTarget(self, action: #selector(didRefresh), for: .valueChanged)
+            refreshControl.transform = .init(scaleX: 0.7, y: 0.7)
+            
+            collectionView.refreshControl = refreshControl
+        }
     }
 }
 
@@ -349,5 +353,45 @@ private extension ScrollViewController
         
         return nil
     }
+    
+    func getItemWidth() -> CGFloat
+    {
+        let numberOfItemsInSection = CGFloat(numberOfItemsInSection)
+        let numberOfRowsOrColumns = CGFloat(numberOfRowsOrColumns)
+        let numberOfInterItemSpaces = numberOfItemsInSection - 1
+        var spacing = sectionInset.left + sectionInset.right
+        var width: CGFloat = 0
+        
+        if m_ScrollDirection == .vertical
+        {
+            spacing += numberOfInterItemSpaces * minimumInteritemSpacing
+            width = (view.frame.size.width - spacing) / numberOfItemsInSection
+        }
+        else
+        {
+            spacing *= numberOfRowsOrColumns
+            width = (view.frame.size.width - spacing) / numberOfItemsInSection
+        }
+        
+        return width
+    }
+    
+    func getItemHeight() -> CGFloat
+    {
+        let numberOfRowsOrColumns = CGFloat(numberOfRowsOrColumns)
+        var spacing: CGFloat = (sectionInset.top + sectionInset.bottom) * numberOfRowsOrColumns
+        var height: CGFloat = 0
+        
+        if m_ScrollDirection == .vertical
+        {
+            height = (view.frame.size.height - spacing) / numberOfRowsOrColumns
+        }
+        else
+        {
+            spacing += (numberOfRowsOrColumns - 1) * minimumInteritemSpacing
+            height = (view.frame.size.height - spacing) / numberOfRowsOrColumns
+        }
+        
+        return height
+    }
 }
-

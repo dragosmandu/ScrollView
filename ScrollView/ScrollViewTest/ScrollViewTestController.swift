@@ -22,12 +22,15 @@ class ScrollViewTestController: UIViewController
     {
         super.viewDidLoad()
         
-        view.backgroundColor = .white
+        view.backgroundColor = .red
         
         m_ScrolViewController.view.translatesAutoresizingMaskIntoConstraints = false
         m_ScrolViewController.onRefreshAction = onRefreshAction
         m_ScrolViewController.onDidAlmostReachEnd = onDidAlmostReachEnd
-        
+        m_ScrolViewController.numberOfRowsOrColumns = 3
+        m_ScrolViewController.numberOfItemsInSection = 5
+        m_ScrolViewController.sectionInset = .init(top: 5, left: 10, bottom: 5, right: 10)
+        m_ScrolViewController.minimumInteritemSpacing = 10
         
         addChild(m_ScrolViewController)
         view.addSubview(m_ScrolViewController.view)
@@ -58,7 +61,7 @@ class ScrollViewTestController: UIViewController
             {
                 if let label = subview as? UILabel
                 {
-                    label.text = "Controller index: \(i) / \(m_ScrolViewController.currentControllers.count - 1) Refreshed"
+                    label.text = "\(i) / \(m_ScrolViewController.currentControllers.count - 1) R"
                 }
             }
         }
@@ -71,9 +74,10 @@ class ScrollViewTestController: UIViewController
     
     private func createNewControllers() -> [UIViewController]
     {
+        let numNewControllers = 50
         var controllers: [UIViewController] = []
         var begin = m_ScrolViewController.currentControllers.count - 1
-        let end = m_ScrolViewController.currentControllers.count + 3
+        let end = m_ScrolViewController.currentControllers.count + numNewControllers
         
         if begin == -1 { begin = 0 }
         
@@ -85,7 +89,7 @@ class ScrollViewTestController: UIViewController
             controller.view.backgroundColor = .yellow
             
             label.translatesAutoresizingMaskIntoConstraints = false
-            label.text = "Controller index: \(i) / \(m_ScrolViewController.currentControllers.count + 3)"
+            label.text = "\(i) / \(m_ScrolViewController.currentControllers.count + numNewControllers)"
             label.textColor = .black
             
             controller.view.addSubview(label)
